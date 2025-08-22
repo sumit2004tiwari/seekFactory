@@ -175,7 +175,7 @@ const Auth = () => {
                         <Input
                           id="signin-password"
                           type="password"
-                          placeholder="Enter your password (any password works in demo)"
+                          placeholder="Enter your password"
                           className="pl-10"
                           value={signInData.password}
                           onChange={(e) => setSignInData({ ...signInData, password: e.target.value })}
