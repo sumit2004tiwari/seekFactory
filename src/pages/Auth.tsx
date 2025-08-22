@@ -94,7 +94,7 @@ const Auth = () => {
       await signUp(userData);
       toast({
         title: "Account Created!",
-        description: "Welcome to SeekFactory! Your account has been created successfully.",
+        description: "Welcome to SeekFactory! Your account has been created successfully. (Demo mode - data stored locally)",
       });
       navigate("/");
     } catch (error) {
