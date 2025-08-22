@@ -54,6 +54,9 @@ class ApiClient {
   constructor() {
     this.baseURL = API_BASE_URL;
     this.token = localStorage.getItem('auth_token');
+
+    // Clear any old localStorage demo data on initialization
+    this.clearLocalStorageData();
   }
 
   private async checkBackendAvailability(): Promise<boolean> {
