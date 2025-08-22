@@ -157,6 +157,7 @@ export const logout = async (req, res, next) => {
 // @access  Private
 export const updateProfile = async (req, res, next) => {
   try {
+    const UserModel = getUserModel();
     const fieldsToUpdate = {
       name: req.body.name,
       companyName: req.body.companyName,
@@ -169,11 +170,11 @@ export const updateProfile = async (req, res, next) => {
     };
 
     // Remove undefined fields
-    Object.keys(fieldsToUpdate).forEach(key => 
+    Object.keys(fieldsToUpdate).forEach(key =>
       fieldsToUpdate[key] === undefined && delete fieldsToUpdate[key]
     );
 
-    const user = await User.findByIdAndUpdate(
+    const user = await UserModel.findByIdAndUpdate(
       req.user.id,
       fieldsToUpdate,
       {
