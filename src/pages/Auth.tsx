@@ -161,7 +161,7 @@ const Auth = () => {
                         <Input
                           id="signin-email"
                           type="email"
-                          placeholder="Enter your email"
+                          placeholder="Enter your email (try: buyer@demo.com)"
                           className="pl-10"
                           value={signInData.email}
                           onChange={(e) => setSignInData({ ...signInData, email: e.target.value })}
