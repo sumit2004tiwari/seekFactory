@@ -51,6 +51,59 @@ class MockStorage {
   private static USERS_KEY = 'demo_users';
   private static CURRENT_USER_KEY = 'demo_current_user';
 
+  static initializeDemoUsers(): void {
+    const existingUsers = this.getUsers();
+    if (existingUsers.length === 0) {
+      // Create demo users for easy testing
+      const demoUsers: User[] = [
+        {
+          id: 'demo_buyer_1',
+          name: 'John Buyer',
+          email: 'buyer@demo.com',
+          role: 'buyer',
+          companyName: 'Demo Purchasing Corp',
+          businessType: 'Trading',
+          phone: '+1-555-0123',
+          address: {
+            street: '123 Business St',
+            city: 'Demo City',
+            state: 'Demo State',
+            country: 'Demo Country',
+            zipCode: '12345'
+          },
+          isVerified: true,
+          avatar: undefined,
+          lastLogin: new Date().toISOString(),
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: new Date().toISOString()
+        },
+        {
+          id: 'demo_supplier_1',
+          name: 'Sarah Supplier',
+          email: 'supplier@demo.com',
+          role: 'supplier',
+          companyName: 'Demo Manufacturing Ltd',
+          businessType: 'Manufacturing',
+          phone: '+1-555-0456',
+          address: {
+            street: '456 Factory Ave',
+            city: 'Industrial City',
+            state: 'Production State',
+            country: 'Manufacturing Country',
+            zipCode: '67890'
+          },
+          isVerified: true,
+          avatar: undefined,
+          lastLogin: new Date().toISOString(),
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: new Date().toISOString()
+        }
+      ];
+      
+      localStorage.setItem(this.USERS_KEY, JSON.stringify(demoUsers));
+    }
+  }
+
   static getUsers(): User[] {
     const users = localStorage.getItem(this.USERS_KEY);
     return users ? JSON.parse(users) : [];
@@ -89,6 +142,8 @@ class ApiClient {
   constructor() {
     this.baseURL = API_BASE_URL;
     this.token = localStorage.getItem('auth_token');
+    // Initialize demo users on first load
+    MockStorage.initializeDemoUsers();
   }
 
   private async checkBackendAvailability(): Promise<boolean> {
@@ -97,12 +152,20 @@ class ApiClient {
     }
 
     try {
+      // Add timeout to prevent hanging
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
+
       const response = await fetch(`${this.baseURL}/health`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal
       });
+      
+      clearTimeout(timeoutId);
       this.isBackendAvailable = response.ok;
     } catch (error) {
+      // Any error means backend is not available - this is fine for demo mode
       this.isBackendAvailable = false;
     }
 
@@ -178,7 +241,14 @@ class ApiClient {
 
   // Authentication endpoints
   async login(credentials: LoginCredentials): Promise<ApiResponse<User>> {
-    const isBackendAvailable = await this.checkBackendAvailability();
+    let isBackendAvailable = false;
+    
+    try {
+      isBackendAvailable = await this.checkBackendAvailability();
+    } catch (error) {
+      // If checking backend availability fails, just use mock mode
+      isBackendAvailable = false;
+    }
 
     if (isBackendAvailable) {
       try {
@@ -194,17 +264,19 @@ class ApiClient {
         return response;
       } catch (error) {
         // Fall back to mock if backend fails
+        console.log('Backend login failed, falling back to mock mode');
       }
     }
 
     // Mock implementation
-    await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate network delay
+    await new Promise(resolve => setTimeout(resolve, 800)); // Simulate network delay
 
     const user = MockStorage.findUser(credentials.email);
     if (!user) {
-      throw new Error('Invalid credentials');
+      throw new Error('Invalid credentials. Try: buyer@demo.com or supplier@demo.com (any password)');
     }
 
+    // In demo mode, any password works
     const token = this.generateMockToken();
     this.setToken(token);
     MockStorage.setCurrentUser(user);
@@ -218,7 +290,14 @@ class ApiClient {
   }
 
   async register(userData: RegisterData): Promise<ApiResponse<User>> {
-    const isBackendAvailable = await this.checkBackendAvailability();
+    let isBackendAvailable = false;
+    
+    try {
+      isBackendAvailable = await this.checkBackendAvailability();
+    } catch (error) {
+      // If checking backend availability fails, just use mock mode
+      isBackendAvailable = false;
+    }
 
     if (isBackendAvailable) {
       try {
@@ -234,11 +313,12 @@ class ApiClient {
         return response;
       } catch (error) {
         // Fall back to mock if backend fails
+        console.log('Backend registration failed, falling back to mock mode');
       }
     }
 
     // Mock implementation
-    await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate network delay
+    await new Promise(resolve => setTimeout(resolve, 1200)); // Simulate network delay
 
     // Check if user already exists
     const existingUser = MockStorage.findUser(userData.email);
@@ -262,9 +342,16 @@ class ApiClient {
   }
 
   async logout(): Promise<ApiResponse> {
-    const isBackendAvailable = await this.checkBackendAvailability();
+    let isBackendAvailable = false;
+    
+    try {
+      isBackendAvailable = await this.checkBackendAvailability();
+    } catch (error) {
+      // If checking backend availability fails, just use mock mode
+      isBackendAvailable = false;
+    }
 
-    if (isBackendAvailable) {
+    if (isBackendAvailable && this.token && !this.token.startsWith('mock_token_')) {
       try {
         const response = await this.request('/auth/logout', {
           method: 'POST',
@@ -275,6 +362,7 @@ class ApiClient {
         return response;
       } catch (error) {
         // Fall back to mock if backend fails
+        console.log('Backend logout failed, falling back to mock mode');
       }
     }
 
@@ -289,13 +377,21 @@ class ApiClient {
   }
 
   async getCurrentUser(): Promise<ApiResponse<User>> {
-    const isBackendAvailable = await this.checkBackendAvailability();
+    let isBackendAvailable = false;
+    
+    try {
+      isBackendAvailable = await this.checkBackendAvailability();
+    } catch (error) {
+      // If checking backend availability fails, just use mock mode
+      isBackendAvailable = false;
+    }
 
     if (isBackendAvailable && this.token && !this.token.startsWith('mock_token_')) {
       try {
         return await this.request<User>('/auth/me');
       } catch (error) {
         // Fall back to mock if backend fails
+        console.log('Backend getCurrentUser failed, falling back to mock mode');
       }
     }
 
@@ -312,7 +408,14 @@ class ApiClient {
   }
 
   async updateProfile(userData: Partial<User>): Promise<ApiResponse<User>> {
-    const isBackendAvailable = await this.checkBackendAvailability();
+    let isBackendAvailable = false;
+    
+    try {
+      isBackendAvailable = await this.checkBackendAvailability();
+    } catch (error) {
+      // If checking backend availability fails, just use mock mode
+      isBackendAvailable = false;
+    }
 
     if (isBackendAvailable && this.token && !this.token.startsWith('mock_token_')) {
       try {
@@ -322,6 +425,7 @@ class ApiClient {
         });
       } catch (error) {
         // Fall back to mock if backend fails
+        console.log('Backend updateProfile failed, falling back to mock mode');
       }
     }
 
@@ -353,7 +457,14 @@ class ApiClient {
 
   // Health check
   async checkHealth(): Promise<ApiResponse> {
-    const isBackendAvailable = await this.checkBackendAvailability();
+    let isBackendAvailable = false;
+    
+    try {
+      isBackendAvailable = await this.checkBackendAvailability();
+    } catch (error) {
+      // If checking backend availability fails, just use mock mode
+      isBackendAvailable = false;
+    }
 
     if (isBackendAvailable) {
       return this.request('/health');
@@ -361,7 +472,7 @@ class ApiClient {
 
     return {
       success: true,
-      message: 'Mock API is running'
+      message: 'Mock API is running - Backend not available'
     };
   }
 }
