@@ -1,5 +1,25 @@
 import User from '../models/User.js';
+import InMemoryUser from '../models/InMemoryUser.js';
 import { sendTokenResponse } from '../utils/jwt.js';
+
+// Check if MongoDB is available
+const isMongoAvailable = () => {
+  try {
+    return User.db && User.db.readyState === 1;
+  } catch (error) {
+    return false;
+  }
+};
+
+// Get the appropriate User model
+const getUserModel = () => {
+  if (isMongoAvailable()) {
+    return User;
+  } else {
+    console.log('🔄 Using in-memory storage (MongoDB unavailable)');
+    return InMemoryUser;
+  }
+};
 
 // @desc    Register user
 // @route   POST /api/auth/register
@@ -7,9 +27,10 @@ import { sendTokenResponse } from '../utils/jwt.js';
 export const register = async (req, res, next) => {
   try {
     const { name, email, password, companyName, phone, businessType, role = 'supplier' } = req.body;
+    const UserModel = getUserModel();
 
     // Check if user already exists
-    const existingUser = await User.findOne({ email });
+    const existingUser = await UserModel.findOne({ email });
     if (existingUser) {
       return res.status(400).json({
         status: 'error',
@@ -18,7 +39,7 @@ export const register = async (req, res, next) => {
     }
 
     // Create user
-    const user = await User.create({
+    const user = await UserModel.create({
       name,
       email,
       password,
@@ -30,7 +51,9 @@ export const register = async (req, res, next) => {
 
     // Update last login
     user.lastLogin = new Date();
-    await user.save();
+    if (isMongoAvailable()) {
+      await user.save();
+    }
 
     sendTokenResponse(user, 201, res, 'User registered successfully');
   } catch (error) {
@@ -44,9 +67,15 @@ export const register = async (req, res, next) => {
 export const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
+    const UserModel = getUserModel();
 
-    // Check for user (include password for comparison)
-    const user = await User.findOne({ email }).select('+password');
+    // Check for user
+    let user;
+    if (isMongoAvailable()) {
+      user = await UserModel.findOne({ email }).select('+password');
+    } else {
+      user = await UserModel.findOne({ email });
+    }
 
     if (!user) {
       return res.status(401).json({
@@ -75,7 +104,9 @@ export const login = async (req, res, next) => {
 
     // Update last login
     user.lastLogin = new Date();
-    await user.save();
+    if (isMongoAvailable()) {
+      await user.save();
+    }
 
     sendTokenResponse(user, 200, res, 'Login successful');
   } catch (error) {
@@ -88,7 +119,8 @@ export const login = async (req, res, next) => {
 // @access  Private
 export const getMe = async (req, res, next) => {
   try {
-    const user = await User.findById(req.user.id);
+    const UserModel = getUserModel();
+    const user = await UserModel.findById(req.user.id);
 
     res.status(200).json({
       status: 'success',
