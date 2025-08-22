@@ -1,110 +1,90 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
-
-interface AuthUser {
-  id: string;
-  email: string;
-  phone?: string;
-  userType?: string;
-}
+import { apiClient, type User } from '@/lib/api-client';
 
 interface AuthContextType {
-  user: AuthUser | null;
-  session: Session | null;
+  user: User | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signUp: (email: string, password: string, metadata?: any) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
 }
 
-interface RegisterData {
-  email: string;
-  password: string;
-  fullName: string;
-  companyName: string;
-  userType: string;
-}
-
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setSession(session);
-        if (session?.user) {
-          // Transform Supabase user to our AuthUser format
-          setUser({
-            id: session.user.id,
-            email: session.user.email || '',
-            phone: session.user.phone,
-            userType: session.user.user_metadata?.user_type
-          });
-        } else {
-          setUser(null);
+    // Check if user is authenticated on app load
+    const initializeAuth = async () => {
+      try {
+        if (apiClient.isAuthenticated()) {
+          const currentUser = await apiClient.getCurrentUser();
+          setUser(currentUser);
         }
+      } catch (error) {
+        console.error('Failed to get current user:', error);
+        // Clear invalid token
+        apiClient.clearToken();
+      } finally {
         setLoading(false);
       }
-    );
+    };
 
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session?.user) {
-        setUser({
-          id: session.user.id,
-          email: session.user.email || '',
-          phone: session.user.phone,
-          userType: session.user.user_metadata?.user_type
-        });
-      }
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    initializeAuth();
   }, []);
 
   const signIn = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      return { error };
+      const { user: loggedInUser } = await apiClient.login({ email, password });
+      setUser(loggedInUser);
+      return { error: null };
     } catch (error) {
-      return { error };
+      return { 
+        error: { 
+          message: error instanceof Error ? error.message : 'Login failed' 
+        } 
+      };
     }
   };
 
   const signUp = async (email: string, password: string, metadata?: any) => {
     try {
-      const { error } = await supabase.auth.signUp({
+      const registerData = {
+        name: metadata?.full_name || metadata?.fullName || '',
         email,
         password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/`,
-          data: metadata
-        }
-      });
-      return { error };
+        companyName: metadata?.company_name || metadata?.companyName,
+        phone: metadata?.phone,
+        businessType: metadata?.business_type || metadata?.businessType || 'manufacturer',
+        role: metadata?.user_type || metadata?.userType || 'supplier',
+      };
+
+      const { user: newUser } = await apiClient.register(registerData);
+      setUser(newUser);
+      return { error: null };
     } catch (error) {
-      return { error };
+      return { 
+        error: { 
+          message: error instanceof Error ? error.message : 'Registration failed' 
+        } 
+      };
     }
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      await apiClient.logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      setUser(null);
+    }
   };
 
   const value = {
     user,
-    session,
     loading,
     signIn,
     signUp,
