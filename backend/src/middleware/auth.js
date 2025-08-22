@@ -1,5 +1,24 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
+import InMemoryUser from '../models/InMemoryUser.js';
+
+// Check if MongoDB is available
+const isMongoAvailable = () => {
+  try {
+    return User.db && User.db.readyState === 1;
+  } catch (error) {
+    return false;
+  }
+};
+
+// Get the appropriate User model
+const getUserModel = () => {
+  if (isMongoAvailable()) {
+    return User;
+  } else {
+    return InMemoryUser;
+  }
+};
 
 export const protect = async (req, res, next) => {
   try {
@@ -22,7 +41,8 @@ export const protect = async (req, res, next) => {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       
       // Get user from token
-      const user = await User.findById(decoded.id);
+      const UserModel = getUserModel();
+      const user = await UserModel.findById(decoded.id);
       
       if (!user) {
         return res.status(401).json({
