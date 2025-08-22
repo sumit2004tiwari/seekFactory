@@ -43,7 +43,7 @@ const Auth = () => {
       await signIn(signInData);
       toast({
         title: "Welcome back!",
-        description: "Successfully signed in.",
+        description: "Successfully signed in. (Demo mode - using local storage)",
       });
       navigate("/");
     } catch (error) {
