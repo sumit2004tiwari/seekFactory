@@ -136,14 +136,7 @@ const Auth = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {/* MongoDB Backend Status */}
-              <Alert className="mb-6 border-green-200 bg-green-50 text-green-800">
-                <Info className="h-4 w-4" />
-                <AlertDescription>
-                  <strong>MongoDB Backend:</strong> Connected to SeekFactory database.<br/>
-                  <em>All user data will be stored securely in MongoDB.</em>
-                </AlertDescription>
-              </Alert>
+              <BackendStatus />
 
               <Tabs defaultValue="signin" className="w-full">
                 <TabsList className="grid w-full grid-cols-2">
