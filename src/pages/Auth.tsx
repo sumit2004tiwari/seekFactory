@@ -140,8 +140,9 @@ const Auth = () => {
               <Alert className="mb-6 border-blue-200 bg-blue-50 text-blue-800">
                 <Info className="h-4 w-4" />
                 <AlertDescription>
-                  <strong>Demo Mode:</strong> Backend server not detected. Using mock authentication for demonstration.
-                  Your data will be stored locally in this browser.
+                  <strong>Demo Mode:</strong> Backend server not detected. Using mock authentication.<br/>
+                  <strong>Demo Accounts:</strong> buyer@demo.com | supplier@demo.com (any password)<br/>
+                  <em>Or create a new account - data stored locally in browser.</em>
                 </AlertDescription>
               </Alert>
 
