@@ -225,9 +225,12 @@ class ApiClient {
 
   // Method to clear any localStorage demo data
   clearLocalStorageData(): void {
+    const hadDemoData = localStorage.getItem('demo_users') || localStorage.getItem('demo_current_user');
     localStorage.removeItem('demo_users');
     localStorage.removeItem('demo_current_user');
-    console.log('🗑️ Cleared localStorage demo data');
+    if (hadDemoData) {
+      console.log('🗑️ Cleared localStorage demo data - now using MongoDB backend');
+    }
   }
 }
 
