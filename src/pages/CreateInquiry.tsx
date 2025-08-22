@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import Header from "@/components/Layout/Header";
 import Footer from "@/components/Layout/Footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,11 +11,6 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Send } from "lucide-react";
-
-interface Profile {
-  id: string;
-  user_type: string;
-}
 
 interface Product {
   id: string;
@@ -32,7 +26,6 @@ const CreateInquiry = () => {
   const productId = searchParams.get('product');
   const supplierId = searchParams.get('supplier');
 
-  const [profile, setProfile] = useState<Profile | null>(null);
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -45,50 +38,20 @@ const CreateInquiry = () => {
   });
 
   useEffect(() => {
-    if (user) {
-      fetchProfile();
-      if (productId) {
-        fetchProduct();
-      }
-    }
-  }, [user, productId]);
-
-  const fetchProfile = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, user_type')
-        .eq('user_id', user?.id)
-        .single();
-
-      if (error) throw error;
-      setProfile(data);
-    } catch (error) {
-      console.error('Error fetching profile:', error);
-      navigate('/dashboard');
-    }
-  };
-
-  const fetchProduct = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('products')
-        .select('id, name, supplier_id')
-        .eq('id', productId)
-        .single();
-
-      if (error) throw error;
-      setProduct(data);
+    if (productId) {
+      // Simulate fetching product data
+      setProduct({
+        id: productId,
+        name: "Sample Product",
+        supplier_id: supplierId || "1"
+      });
       
-      // Pre-fill subject if product is selected
       setFormData(prev => ({
         ...prev,
-        subject: `Inquiry about ${data.name}`
+        subject: `Inquiry about Sample Product`
       }));
-    } catch (error) {
-      console.error('Error fetching product:', error);
     }
-  };
+  }, [productId, supplierId]);
 
   const handleInputChange = (field: string, value: string | number) => {
     setFormData(prev => ({
@@ -100,33 +63,22 @@ const CreateInquiry = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!profile) {
+    if (!user) {
       toast({
         title: "Error",
-        description: "Profile not loaded. Please try again.",
+        description: "Please sign in to send an inquiry.",
         variant: "destructive"
       });
+      navigate('/auth');
       return;
     }
 
     setLoading(true);
 
     try {
-      const inquiryData = {
-        ...formData,
-        buyer_id: profile.id,
-        supplier_id: supplierId || product?.supplier_id,
-        product_id: productId,
-        quantity_required: formData.quantity_required ? parseInt(formData.quantity_required) : null,
-        status: 'pending' as const
-      };
-
-      const { error } = await supabase
-        .from('inquiries')
-        .insert([inquiryData]);
-
-      if (error) throw error;
-
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
       toast({
         title: "Success",
         description: "Your inquiry has been sent successfully!",

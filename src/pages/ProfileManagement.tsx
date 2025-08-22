@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
 import Header from "@/components/Layout/Header";
 import Footer from "@/components/Layout/Footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,83 +13,78 @@ import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Save, Upload } from "lucide-react";
 import { Link } from "react-router-dom";
 
-interface Profile {
-  id: string;
-  user_type: string;
-  company_name: string;
-  contact_person: string;
-  description: string;
-  phone: string;
-  address: string;
-  city: string;
-  state: string;
-  country: string;
-  website: string;
-  profile_image_url: string;
-}
-
 const ProfileManagement = () => {
-  const { user } = useAuth();
+  const { user, updateUserProfile } = useAuth();
   const { toast } = useToast();
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  const [profile, setProfile] = useState({
+    name: user?.name || "",
+    email: user?.email || "",
+    companyName: user?.companyName || "",
+    businessType: user?.businessType || "",
+    phone: user?.phone || "",
+    role: user?.role || "buyer",
+    address: {
+      street: user?.address?.street || "",
+      city: user?.address?.city || "",
+      state: user?.address?.state || "",
+      country: user?.address?.country || "",
+      zipCode: user?.address?.zipCode || ""
+    },
+    website: "",
+    description: ""
+  });
 
   useEffect(() => {
     if (user) {
-      fetchProfile();
+      setProfile({
+        name: user.name || "",
+        email: user.email || "",
+        companyName: user.companyName || "",
+        businessType: user.businessType || "",
+        phone: user.phone || "",
+        role: user.role || "buyer",
+        address: {
+          street: user.address?.street || "",
+          city: user.address?.city || "",
+          state: user.address?.state || "",
+          country: user.address?.country || "",
+          zipCode: user.address?.zipCode || ""
+        },
+        website: "",
+        description: ""
+      });
     }
   }, [user]);
 
-  const fetchProfile = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', user?.id)
-        .single();
-
-      if (error) throw error;
-      setProfile(data);
-    } catch (error) {
-      console.error('Error fetching profile:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load profile information",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleInputChange = (field: string, value: string) => {
-    if (profile) {
-      setProfile({ ...profile, [field]: value });
+    if (field.startsWith('address.')) {
+      const addressField = field.split('.')[1];
+      setProfile(prev => ({
+        ...prev,
+        address: {
+          ...prev.address,
+          [addressField]: value
+        }
+      }));
+    } else {
+      setProfile(prev => ({ ...prev, [field]: value }));
     }
   };
 
   const handleSave = async () => {
-    if (!profile) return;
-
     setSaving(true);
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          company_name: profile.company_name,
-          contact_person: profile.contact_person,
-          description: profile.description,
-          phone: profile.phone,
-          address: profile.address,
-          city: profile.city,
-          state: profile.state,
-          country: profile.country,
-          website: profile.website,
-        })
-        .eq('user_id', user?.id);
-
-      if (error) throw error;
+      // Use the auth context's updateUserProfile method
+      await updateUserProfile({
+        name: profile.name,
+        companyName: profile.companyName,
+        businessType: profile.businessType,
+        phone: profile.phone,
+        address: profile.address
+      });
 
       toast({
         title: "Success",
@@ -108,29 +102,14 @@ const ProfileManagement = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <div className="container mx-auto px-4 py-16">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary mx-auto"></div>
-            <p className="mt-4 text-muted-foreground">Loading profile...</p>
-          </div>
-        </div>
-        <Footer />
-      </div>
-    );
-  }
-
-  if (!profile) {
+  if (!user) {
     return (
       <div className="min-h-screen bg-background">
         <Header />
         <div className="container mx-auto px-4 py-16 text-center">
-          <h1 className="text-2xl font-bold mb-4">Profile not found</h1>
+          <h1 className="text-2xl font-bold mb-4">Please log in to view your profile</h1>
           <Button asChild>
-            <Link to="/dashboard">Go to Dashboard</Link>
+            <Link to="/auth">Sign In</Link>
           </Button>
         </div>
         <Footer />
@@ -153,7 +132,7 @@ const ProfileManagement = () => {
           </Button>
           <h1 className="text-3xl font-heading font-bold">Edit Profile</h1>
           <p className="text-muted-foreground">
-            Update your profile information to help buyers find and contact you.
+            Update your profile information to help others find and contact you.
           </p>
         </div>
 
@@ -167,9 +146,9 @@ const ProfileManagement = () => {
               <CardContent className="space-y-4">
                 <div className="flex flex-col items-center gap-4">
                   <Avatar className="w-32 h-32">
-                    <AvatarImage src={profile.profile_image_url} />
+                    <AvatarImage src={user.avatar} />
                     <AvatarFallback className="text-2xl">
-                      {profile.contact_person?.charAt(0) || 'U'}
+                      {user.name?.charAt(0) || 'U'}
                     </AvatarFallback>
                   </Avatar>
                   <Button variant="outline" size="sm">
@@ -180,8 +159,8 @@ const ProfileManagement = () => {
                 
                 <div className="space-y-3">
                   <div>
-                    <Label htmlFor="user_type">Account Type</Label>
-                    <Select value={profile.user_type} disabled>
+                    <Label htmlFor="role">Account Type</Label>
+                    <Select value={profile.role} disabled>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
@@ -206,21 +185,42 @@ const ProfileManagement = () => {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="contact_person">Contact Person</Label>
+                    <Label htmlFor="name">Full Name</Label>
                     <Input
-                      id="contact_person"
-                      value={profile.contact_person || ''}
-                      onChange={(e) => handleInputChange('contact_person', e.target.value)}
+                      id="name"
+                      value={profile.name}
+                      onChange={(e) => handleInputChange('name', e.target.value)}
                       placeholder="Full name"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="company_name">Company Name</Label>
+                    <Label htmlFor="email">Email Address</Label>
                     <Input
-                      id="company_name"
-                      value={profile.company_name || ''}
-                      onChange={(e) => handleInputChange('company_name', e.target.value)}
+                      id="email"
+                      value={profile.email}
+                      disabled
+                      placeholder="Email address"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="companyName">Company Name</Label>
+                    <Input
+                      id="companyName"
+                      value={profile.companyName}
+                      onChange={(e) => handleInputChange('companyName', e.target.value)}
                       placeholder="Your company name"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="businessType">Business Type</Label>
+                    <Input
+                      id="businessType"
+                      value={profile.businessType}
+                      onChange={(e) => handleInputChange('businessType', e.target.value)}
+                      placeholder="e.g., Manufacturing, Trading"
                     />
                   </div>
                 </div>
@@ -229,9 +229,9 @@ const ProfileManagement = () => {
                   <Label htmlFor="description">Company Description</Label>
                   <Textarea
                     id="description"
-                    value={profile.description || ''}
+                    value={profile.description}
                     onChange={(e) => handleInputChange('description', e.target.value)}
-                    placeholder="Tell buyers about your company and what you offer..."
+                    placeholder="Tell others about your company and what you offer..."
                     rows={4}
                   />
                 </div>
@@ -241,7 +241,7 @@ const ProfileManagement = () => {
                     <Label htmlFor="phone">Phone Number</Label>
                     <Input
                       id="phone"
-                      value={profile.phone || ''}
+                      value={profile.phone}
                       onChange={(e) => handleInputChange('phone', e.target.value)}
                       placeholder="+1 (555) 123-4567"
                     />
@@ -250,7 +250,7 @@ const ProfileManagement = () => {
                     <Label htmlFor="website">Website</Label>
                     <Input
                       id="website"
-                      value={profile.website || ''}
+                      value={profile.website}
                       onChange={(e) => handleInputChange('website', e.target.value)}
                       placeholder="https://www.yourcompany.com"
                     />
@@ -266,37 +266,40 @@ const ProfileManagement = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label htmlFor="address">Street Address</Label>
+                  <Label htmlFor="address.street">Street Address</Label>
                   <Input
-                    id="address"
-                    value={profile.address || ''}
-                    onChange={(e) => handleInputChange('address', e.target.value)}
+                    id="address.street"
+                    value={profile.address.street}
+                    onChange={(e) => handleInputChange('address.street', e.target.value)}
                     placeholder="123 Business Street"
                   />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <Label htmlFor="city">City</Label>
+                    <Label htmlFor="address.city">City</Label>
                     <Input
-                      id="city"
-                      value={profile.city || ''}
-                      onChange={(e) => handleInputChange('city', e.target.value)}
+                      id="address.city"
+                      value={profile.address.city}
+                      onChange={(e) => handleInputChange('address.city', e.target.value)}
                       placeholder="City"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="state">State/Province</Label>
+                    <Label htmlFor="address.state">State/Province</Label>
                     <Input
-                      id="state"
-                      value={profile.state || ''}
-                      onChange={(e) => handleInputChange('state', e.target.value)}
+                      id="address.state"
+                      value={profile.address.state}
+                      onChange={(e) => handleInputChange('address.state', e.target.value)}
                       placeholder="State or Province"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="country">Country</Label>
-                    <Select value={profile.country || ''} onValueChange={(value) => handleInputChange('country', value)}>
+                    <Label htmlFor="address.country">Country</Label>
+                    <Select 
+                      value={profile.address.country} 
+                      onValueChange={(value) => handleInputChange('address.country', value)}
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="Select country" />
                       </SelectTrigger>
@@ -310,6 +313,18 @@ const ProfileManagement = () => {
                         <SelectItem value="Other">Other</SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="address.zipCode">ZIP/Postal Code</Label>
+                    <Input
+                      id="address.zipCode"
+                      value={profile.address.zipCode}
+                      onChange={(e) => handleInputChange('address.zipCode', e.target.value)}
+                      placeholder="12345"
+                    />
                   </div>
                 </div>
               </CardContent>

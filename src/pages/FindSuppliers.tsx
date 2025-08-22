@@ -9,7 +9,6 @@ import { Search, Filter, MapPin, Star, MessageCircle, Building, Globe, Award } f
 import { Link } from "react-router-dom";
 import Header from "@/components/Layout/Header";
 import Footer from "@/components/Layout/Footer";
-import { supabase } from "@/integrations/supabase/client";
 
 interface Supplier {
   id: string;
@@ -25,6 +24,56 @@ interface Supplier {
   product_count?: number;
 }
 
+// Placeholder data for demonstration
+const mockSuppliers: Supplier[] = [
+  {
+    id: "1",
+    company_name: "TechMachinery Ltd",
+    contact_person: "John Smith",
+    description: "Leading manufacturer of industrial machinery with 20+ years of experience",
+    city: "Mumbai",
+    country: "India",
+    website: "https://techmachinery.com",
+    profile_image_url: "",
+    is_verified: true,
+    created_at: "2024-01-01",
+    product_count: 25
+  },
+  {
+    id: "2", 
+    company_name: "Global Manufacturing Co",
+    contact_person: "Sarah Johnson",
+    description: "Specialized in precision tools and equipment manufacturing",
+    city: "Delhi",
+    country: "India",
+    website: "https://globalmanufacturing.com",
+    profile_image_url: "",
+    is_verified: true,
+    created_at: "2024-01-02",
+    product_count: 18
+  },
+  {
+    id: "3",
+    company_name: "Elite Engineering Works",
+    contact_person: "Raj Patel",
+    description: "Custom machinery solutions for various industries",
+    city: "Bangalore",
+    country: "India", 
+    website: "",
+    profile_image_url: "",
+    is_verified: false,
+    created_at: "2024-01-03",
+    product_count: 12
+  }
+];
+
+const mockCategories = [
+  { id: "1", name: "Industrial Machinery" },
+  { id: "2", name: "Construction Equipment" },
+  { id: "3", name: "Agricultural Tools" },
+  { id: "4", name: "Manufacturing Equipment" }
+];
+
 const FindSuppliers = () => {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
@@ -34,51 +83,13 @@ const FindSuppliers = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
 
   useEffect(() => {
-    fetchSuppliers();
-    fetchCategories();
-  }, []);
-
-  const fetchSuppliers = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select(`
-          *,
-          products!inner(count)
-        `)
-        .eq('user_type', 'supplier')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      
-      // Process data to add product count
-      const processedData = data?.map(supplier => ({
-        ...supplier,
-        product_count: supplier.products?.length || 0
-      })) || [];
-      
-      setSuppliers(processedData);
-    } catch (error) {
-      console.error('Error fetching suppliers:', error);
-    } finally {
+    // Simulate API call
+    setTimeout(() => {
+      setSuppliers(mockSuppliers);
+      setCategories(mockCategories);
       setLoading(false);
-    }
-  };
-
-  const fetchCategories = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('categories')
-        .select('*')
-        .eq('is_active', true)
-        .order('name');
-
-      if (error) throw error;
-      setCategories(data || []);
-    } catch (error) {
-      console.error('Error fetching categories:', error);
-    }
-  };
+    }, 1000);
+  }, []);
 
   const countries = ["China", "India", "United States", "Germany", "Japan", "South Korea", "Taiwan"];
 
