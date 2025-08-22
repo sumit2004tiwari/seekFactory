@@ -17,9 +17,11 @@ const Auth = () => {
     email: "",
     password: "",
     confirmPassword: "",
-    fullName: "",
+    name: "",
     companyName: "",
-    userType: "buyer",
+    role: "buyer" as "buyer" | "supplier",
+    businessType: "",
+    phone: "",
   });
 
   const { signIn, signUp, user } = useAuth();
@@ -36,20 +38,19 @@ const Auth = () => {
     e.preventDefault();
     setIsLoading(true);
 
-    const { error } = await signIn(signInData.email, signInData.password);
-
-    if (error) {
-      toast({
-        title: "Sign In Failed",
-        description: error?.message || "An error occurred during sign in",
-        variant: "destructive",
-      });
-    } else {
+    try {
+      await signIn(signInData);
       toast({
         title: "Welcome back!",
         description: "Successfully signed in.",
       });
       navigate("/");
+    } catch (error) {
+      toast({
+        title: "Sign In Failed",
+        description: error instanceof Error ? error.message : "An error occurred during sign in",
+        variant: "destructive",
+      });
     }
 
     setIsLoading(false);
@@ -67,24 +68,39 @@ const Auth = () => {
       return;
     }
 
-    setIsLoading(true);
-
-    const { error } = await signUp(signUpData.email, signUpData.password, {
-      full_name: signUpData.fullName,
-      company_name: signUpData.companyName,
-      user_type: signUpData.userType,
-    });
-
-    if (error) {
+    if (signUpData.password.length < 6) {
       toast({
-        title: "Sign Up Failed",
-        description: error?.message || "An error occurred during sign up",
+        title: "Weak Password",
+        description: "Password must be at least 6 characters long.",
         variant: "destructive",
       });
-    } else {
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const userData = {
+        name: signUpData.name,
+        email: signUpData.email,
+        password: signUpData.password,
+        role: signUpData.role,
+        companyName: signUpData.companyName || undefined,
+        businessType: signUpData.businessType || undefined,
+        phone: signUpData.phone || undefined,
+      };
+
+      await signUp(userData);
       toast({
         title: "Account Created!",
-        description: "Please check your email to verify your account.",
+        description: "Welcome to SeekFactory! Your account has been created successfully.",
+      });
+      navigate("/");
+    } catch (error) {
+      toast({
+        title: "Sign Up Failed",
+        description: error instanceof Error ? error.message : "An error occurred during sign up",
+        variant: "destructive",
       });
     }
 
@@ -174,8 +190,8 @@ const Auth = () => {
                           type="text"
                           placeholder="Enter your full name"
                           className="pl-10"
-                          value={signUpData.fullName}
-                          onChange={(e) => setSignUpData({ ...signUpData, fullName: e.target.value })}
+                          value={signUpData.name}
+                          onChange={(e) => setSignUpData({ ...signUpData, name: e.target.value })}
                           required
                         />
                       </div>
@@ -187,7 +203,7 @@ const Auth = () => {
                         <Input
                           id="signup-company"
                           type="text"
-                          placeholder="Enter your company name"
+                          placeholder="Enter your company name (optional)"
                           className="pl-10"
                           value={signUpData.companyName}
                           onChange={(e) => setSignUpData({ ...signUpData, companyName: e.target.value })}
@@ -195,10 +211,30 @@ const Auth = () => {
                       </div>
                     </div>
                     <div className="space-y-2">
+                      <Label htmlFor="business-type">Business Type</Label>
+                      <Input
+                        id="business-type"
+                        type="text"
+                        placeholder="e.g., Manufacturing, Trading (optional)"
+                        value={signUpData.businessType}
+                        onChange={(e) => setSignUpData({ ...signUpData, businessType: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="phone">Phone Number</Label>
+                      <Input
+                        id="phone"
+                        type="tel"
+                        placeholder="Enter your phone number (optional)"
+                        value={signUpData.phone}
+                        onChange={(e) => setSignUpData({ ...signUpData, phone: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
                       <Label htmlFor="user-type">I am a</Label>
                       <Select
-                        value={signUpData.userType}
-                        onValueChange={(value) => setSignUpData({ ...signUpData, userType: value })}
+                        value={signUpData.role}
+                        onValueChange={(value: "buyer" | "supplier") => setSignUpData({ ...signUpData, role: value })}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Select your role" />
@@ -231,7 +267,7 @@ const Auth = () => {
                         <Input
                           id="signup-password"
                           type="password"
-                          placeholder="Create a password"
+                          placeholder="Create a password (min 6 characters)"
                           className="pl-10"
                           value={signUpData.password}
                           onChange={(e) => setSignUpData({ ...signUpData, password: e.target.value })}
