@@ -136,13 +136,12 @@ const Auth = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {/* Demo Mode Alert */}
-              <Alert className="mb-6 border-blue-200 bg-blue-50 text-blue-800">
+              {/* MongoDB Backend Status */}
+              <Alert className="mb-6 border-green-200 bg-green-50 text-green-800">
                 <Info className="h-4 w-4" />
                 <AlertDescription>
-                  <strong>Demo Mode:</strong> Backend server not detected. Using mock authentication.<br/>
-                  <strong>Demo Accounts:</strong> buyer@demo.com | supplier@demo.com (any password)<br/>
-                  <em>Or create a new account - data stored locally in browser.</em>
+                  <strong>MongoDB Backend:</strong> Connected to SeekFactory database.<br/>
+                  <em>All user data will be stored securely in MongoDB.</em>
                 </AlertDescription>
               </Alert>
 
