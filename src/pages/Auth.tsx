@@ -136,6 +136,15 @@ const Auth = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
+              {/* Demo Mode Alert */}
+              <Alert className="mb-6 border-blue-200 bg-blue-50 text-blue-800">
+                <Info className="h-4 w-4" />
+                <AlertDescription>
+                  <strong>Demo Mode:</strong> Backend server not detected. Using mock authentication for demonstration.
+                  Your data will be stored locally in this browser.
+                </AlertDescription>
+              </Alert>
+
               <Tabs defaultValue="signin" className="w-full">
                 <TabsList className="grid w-full grid-cols-2">
                   <TabsTrigger value="signin">Sign In</TabsTrigger>
