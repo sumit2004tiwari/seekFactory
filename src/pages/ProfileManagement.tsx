@@ -1,139 +1,137 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
 import Header from "@/components/Layout/Header";
-import Footer from "@/components/Layout/Footer";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { User, Building2, Phone, Mail, MapPin, Globe, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Save, Upload } from "lucide-react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import { apiClient } from "@/lib/api-client";
 
-interface Profile {
-  id: string;
-  user_type: string;
-  company_name: string;
-  contact_person: string;
-  description: string;
+interface ProfileData {
+  name: string;
+  email: string;
+  companyName: string;
   phone: string;
-  address: string;
-  city: string;
-  state: string;
-  country: string;
   website: string;
-  profile_image_url: string;
+  description: string;
+  address: {
+    street: string;
+    city: string;
+    state: string;
+    country: string;
+    zipCode: string;
+  };
+  businessType: string;
 }
 
 const ProfileManagement = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const navigate = useNavigate();
+  
+  const [profile, setProfile] = useState<ProfileData>({
+    name: "",
+    email: "",
+    companyName: "",
+    phone: "",
+    website: "",
+    description: "",
+    address: {
+      street: "",
+      city: "",
+      state: "",
+      country: "India",
+      zipCode: "",
+    },
+    businessType: "manufacturer",
+  });
+  
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      fetchProfile();
+    if (!user) {
+      navigate('/auth');
+      return;
     }
-  }, [user]);
 
-  const fetchProfile = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', user?.id)
-        .single();
-
-      if (error) throw error;
-      setProfile(data);
-    } catch (error) {
-      console.error('Error fetching profile:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load profile information",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+    // Initialize profile with user data
+    setProfile({
+      name: user.name || "",
+      email: user.email || "",
+      companyName: (user as any).companyName || "",
+      phone: (user as any).phone || "",
+      website: (user as any).website || "",
+      description: (user as any).description || "",
+      address: {
+        street: (user as any).address?.street || "",
+        city: (user as any).address?.city || "",
+        state: (user as any).address?.state || "",
+        country: (user as any).address?.country || "India",
+        zipCode: (user as any).address?.zipCode || "",
+      },
+      businessType: (user as any).businessType || "manufacturer",
+    });
+    
+    setIsLoading(false);
+  }, [user, navigate]);
 
   const handleInputChange = (field: string, value: string) => {
-    if (profile) {
-      setProfile({ ...profile, [field]: value });
+    if (field.startsWith('address.')) {
+      const addressField = field.split('.')[1];
+      setProfile(prev => ({
+        ...prev,
+        address: {
+          ...prev.address,
+          [addressField]: value
+        }
+      }));
+    } else {
+      setProfile(prev => ({ ...prev, [field]: value }));
     }
   };
 
   const handleSave = async () => {
-    if (!profile) return;
+    if (!user) return;
 
-    setSaving(true);
+    setIsSaving(true);
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          company_name: profile.company_name,
-          contact_person: profile.contact_person,
-          description: profile.description,
-          phone: profile.phone,
-          address: profile.address,
-          city: profile.city,
-          state: profile.state,
-          country: profile.country,
-          website: profile.website,
-        })
-        .eq('user_id', user?.id);
-
-      if (error) throw error;
+      await apiClient.updateProfile({
+        name: profile.name,
+        companyName: profile.companyName,
+        phone: profile.phone,
+        businessType: profile.businessType,
+      });
 
       toast({
-        title: "Success",
-        description: "Profile updated successfully",
+        title: "Profile Updated",
+        description: "Your profile has been successfully updated.",
       });
     } catch (error) {
-      console.error('Error updating profile:', error);
       toast({
-        title: "Error",
-        description: "Failed to update profile",
+        title: "Update Failed",
+        description: error instanceof Error ? error.message : "Failed to update profile",
         variant: "destructive",
       });
     } finally {
-      setSaving(false);
+      setIsSaving(false);
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-background">
         <Header />
-        <div className="container mx-auto px-4 py-16">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary mx-auto"></div>
-            <p className="mt-4 text-muted-foreground">Loading profile...</p>
-          </div>
+        <div className="container mx-auto px-4 py-8">
+          <div className="text-center">Loading profile...</div>
         </div>
-        <Footer />
-      </div>
-    );
-  }
-
-  if (!profile) {
-    return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <div className="container mx-auto px-4 py-16 text-center">
-          <h1 className="text-2xl font-bold mb-4">Profile not found</h1>
-          <Button asChild>
-            <Link to="/dashboard">Go to Dashboard</Link>
-          </Button>
-        </div>
-        <Footer />
       </div>
     );
   }
@@ -142,191 +140,228 @@ const ProfileManagement = () => {
     <div className="min-h-screen bg-background">
       <Header />
       
-      <main className="container mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="mb-6">
-          <Button variant="ghost" asChild className="mb-4">
-            <Link to="/dashboard">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Dashboard
-            </Link>
-          </Button>
-          <h1 className="text-3xl font-heading font-bold">Edit Profile</h1>
-          <p className="text-muted-foreground">
-            Update your profile information to help buyers find and contact you.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Profile Picture & Basic Info */}
-          <div className="lg:col-span-1">
-            <Card>
-              <CardHeader>
-                <CardTitle>Profile Picture</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex flex-col items-center gap-4">
-                  <Avatar className="w-32 h-32">
-                    <AvatarImage src={profile.profile_image_url} />
-                    <AvatarFallback className="text-2xl">
-                      {profile.contact_person?.charAt(0) || 'U'}
-                    </AvatarFallback>
-                  </Avatar>
-                  <Button variant="outline" size="sm">
-                    <Upload className="w-4 h-4 mr-2" />
-                    Upload New Photo
-                  </Button>
-                </div>
-                
-                <div className="space-y-3">
-                  <div>
-                    <Label htmlFor="user_type">Account Type</Label>
-                    <Select value={profile.user_type} disabled>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="buyer">Buyer</SelectItem>
-                        <SelectItem value="supplier">Supplier</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-4xl mx-auto">
+          <div className="mb-8">
+            <h1 className="text-3xl font-heading font-bold mb-2">Profile Management</h1>
+            <p className="text-muted-foreground">
+              Manage your account information and business details
+            </p>
           </div>
 
-          {/* Main Profile Form */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Basic Information */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Basic Information</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="contact_person">Contact Person</Label>
-                    <Input
-                      id="contact_person"
-                      value={profile.contact_person || ''}
-                      onChange={(e) => handleInputChange('contact_person', e.target.value)}
-                      placeholder="Full name"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="company_name">Company Name</Label>
-                    <Input
-                      id="company_name"
-                      value={profile.company_name || ''}
-                      onChange={(e) => handleInputChange('company_name', e.target.value)}
-                      placeholder="Your company name"
-                    />
-                  </div>
-                </div>
+          <Tabs defaultValue="personal" className="space-y-6">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="personal">Personal Info</TabsTrigger>
+              <TabsTrigger value="business">Business Details</TabsTrigger>
+              <TabsTrigger value="verification">Verification</TabsTrigger>
+            </TabsList>
 
-                <div>
-                  <Label htmlFor="description">Company Description</Label>
-                  <Textarea
-                    id="description"
-                    value={profile.description || ''}
-                    onChange={(e) => handleInputChange('description', e.target.value)}
-                    placeholder="Tell buyers about your company and what you offer..."
-                    rows={4}
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
+            <TabsContent value="personal">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <User className="w-5 h-5" />
+                    Personal Information
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="name">Full Name</Label>
+                      <Input
+                        id="name"
+                        value={profile.name}
+                        onChange={(e) => handleInputChange('name', e.target.value)}
+                        placeholder="Enter your full name"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        value={profile.email}
+                        disabled
+                        placeholder="Your email address"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
                     <Label htmlFor="phone">Phone Number</Label>
                     <Input
                       id="phone"
-                      value={profile.phone || ''}
+                      value={profile.phone}
                       onChange={(e) => handleInputChange('phone', e.target.value)}
-                      placeholder="+1 (555) 123-4567"
+                      placeholder="Enter your phone number"
                     />
                   </div>
-                  <div>
+
+                  <div className="space-y-2">
                     <Label htmlFor="website">Website</Label>
                     <Input
                       id="website"
-                      value={profile.website || ''}
+                      value={profile.website}
                       onChange={(e) => handleInputChange('website', e.target.value)}
-                      placeholder="https://www.yourcompany.com"
+                      placeholder="https://yourwebsite.com"
                     />
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-            {/* Address Information */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Address Information</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label htmlFor="address">Street Address</Label>
-                  <Input
-                    id="address"
-                    value={profile.address || ''}
-                    onChange={(e) => handleInputChange('address', e.target.value)}
-                    placeholder="123 Business Street"
-                  />
-                </div>
+            <TabsContent value="business">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Building2 className="w-5 h-5" />
+                    Business Information
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="companyName">Company Name</Label>
+                      <Input
+                        id="companyName"
+                        value={profile.companyName}
+                        onChange={(e) => handleInputChange('companyName', e.target.value)}
+                        placeholder="Enter your company name"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="businessType">Business Type</Label>
+                      <Select
+                        value={profile.businessType}
+                        onValueChange={(value) => handleInputChange('businessType', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select business type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="manufacturer">Manufacturer</SelectItem>
+                          <SelectItem value="wholesaler">Wholesaler</SelectItem>
+                          <SelectItem value="distributor">Distributor</SelectItem>
+                          <SelectItem value="retailer">Retailer</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <Label htmlFor="city">City</Label>
-                    <Input
-                      id="city"
-                      value={profile.city || ''}
-                      onChange={(e) => handleInputChange('city', e.target.value)}
-                      placeholder="City"
+                  <div className="space-y-2">
+                    <Label htmlFor="description">Company Description</Label>
+                    <Textarea
+                      id="description"
+                      value={profile.description}
+                      onChange={(e) => handleInputChange('description', e.target.value)}
+                      placeholder="Describe your business..."
+                      rows={4}
                     />
                   </div>
-                  <div>
-                    <Label htmlFor="state">State/Province</Label>
-                    <Input
-                      id="state"
-                      value={profile.state || ''}
-                      onChange={(e) => handleInputChange('state', e.target.value)}
-                      placeholder="State or Province"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="country">Country</Label>
-                    <Select value={profile.country || ''} onValueChange={(value) => handleInputChange('country', value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select country" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="India">India</SelectItem>
-                        <SelectItem value="China">China</SelectItem>
-                        <SelectItem value="United States">United States</SelectItem>
-                        <SelectItem value="United Kingdom">United Kingdom</SelectItem>
-                        <SelectItem value="Germany">Germany</SelectItem>
-                        <SelectItem value="Japan">Japan</SelectItem>
-                        <SelectItem value="Other">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
 
-            {/* Save Button */}
-            <div className="flex justify-end">
-              <Button onClick={handleSave} disabled={saving}>
-                <Save className="w-4 h-4 mr-2" />
-                {saving ? 'Saving...' : 'Save Changes'}
-              </Button>
-            </div>
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold flex items-center gap-2">
+                      <MapPin className="w-5 h-5" />
+                      Business Address
+                    </h3>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="street">Street Address</Label>
+                      <Input
+                        id="street"
+                        value={profile.address.street}
+                        onChange={(e) => handleInputChange('address.street', e.target.value)}
+                        placeholder="Enter street address"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="city">City</Label>
+                        <Input
+                          id="city"
+                          value={profile.address.city}
+                          onChange={(e) => handleInputChange('address.city', e.target.value)}
+                          placeholder="City"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="state">State</Label>
+                        <Input
+                          id="state"
+                          value={profile.address.state}
+                          onChange={(e) => handleInputChange('address.state', e.target.value)}
+                          placeholder="State"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="zipCode">ZIP Code</Label>
+                        <Input
+                          id="zipCode"
+                          value={profile.address.zipCode}
+                          onChange={(e) => handleInputChange('address.zipCode', e.target.value)}
+                          placeholder="ZIP Code"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="verification">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Account Verification</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-4 border rounded-lg">
+                      <div>
+                        <h4 className="font-medium">Email Verification</h4>
+                        <p className="text-sm text-muted-foreground">Verify your email address</p>
+                      </div>
+                      <Badge variant={user?.isEmailVerified ? "default" : "secondary"}>
+                        {user?.isEmailVerified ? "Verified" : "Pending"}
+                      </Badge>
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 border rounded-lg">
+                      <div>
+                        <h4 className="font-medium">Business Verification</h4>
+                        <p className="text-sm text-muted-foreground">Verify your business credentials</p>
+                      </div>
+                      <Badge variant={user?.isVerified ? "default" : "secondary"}>
+                        {user?.isVerified ? "Verified" : "Pending"}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <div className="p-4 bg-muted rounded-lg">
+                    <p className="text-sm text-muted-foreground">
+                      <strong>Note:</strong> Verification features will be implemented in the next phase of development.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+
+          <div className="mt-8 flex justify-end">
+            <Button onClick={handleSave} disabled={isSaving} variant="accent">
+              {isSaving ? (
+                "Saving..."
+              ) : (
+                <>
+                  <Save className="w-4 h-4 mr-2" />
+                  Save Changes
+                </>
+              )}
+            </Button>
           </div>
         </div>
-      </main>
-
-      <Footer />
+      </div>
     </div>
   );
 };

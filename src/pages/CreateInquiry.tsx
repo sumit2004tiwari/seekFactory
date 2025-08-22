@@ -1,185 +1,170 @@
 import { useState, useEffect } from "react";
-import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import Header from "@/components/Layout/Header";
-import Footer from "@/components/Layout/Footer";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Send } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
-interface Profile {
+interface Supplier {
   id: string;
-  user_type: string;
+  company_name: string;
+  contact_person: string;
+  phone: string;
+  city: string;
+  state: string;
 }
 
 interface Product {
   id: string;
   name: string;
+  description: string;
+  price_range: string;
   supplier_id: string;
 }
 
 const CreateInquiry = () => {
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  const { toast } = useToast();
-  const [searchParams] = useSearchParams();
-  const productId = searchParams.get('product');
-  const supplierId = searchParams.get('supplier');
-
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [product, setProduct] = useState<Product | null>(null);
-  const [loading, setLoading] = useState(false);
-
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [selectedSupplier, setSelectedSupplier] = useState<string>("");
+  const [selectedProduct, setSelectedProduct] = useState<string>("");
   const [formData, setFormData] = useState({
     subject: "",
     message: "",
-    quantity_required: "",
-    target_price: "",
-    delivery_timeline: ""
+    quantity: "",
+    targetPrice: "",
+    deliveryTimeline: "",
   });
-
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+  
   useEffect(() => {
-    if (user) {
-      fetchProfile();
-      if (productId) {
-        fetchProduct();
-      }
+    if (!user) {
+      navigate('/auth');
+      return;
     }
-  }, [user, productId]);
-
-  const fetchProfile = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, user_type')
-        .eq('user_id', user?.id)
-        .single();
-
-      if (error) throw error;
-      setProfile(data);
-    } catch (error) {
-      console.error('Error fetching profile:', error);
-      navigate('/dashboard');
-    }
-  };
-
-  const fetchProduct = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('products')
-        .select('id, name, supplier_id')
-        .eq('id', productId)
-        .single();
-
-      if (error) throw error;
-      setProduct(data);
-      
-      // Pre-fill subject if product is selected
-      setFormData(prev => ({
-        ...prev,
-        subject: `Inquiry about ${data.name}`
-      }));
-    } catch (error) {
-      console.error('Error fetching product:', error);
-    }
-  };
-
-  const handleInputChange = (field: string, value: string | number) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
+    
+    // For now, we'll show a message that this feature is coming soon
+    // TODO: Implement backend APIs for suppliers and products
+    toast({
+      title: "Coming Soon",
+      description: "Inquiry creation will be available once the supplier database is populated.",
+      variant: "destructive",
+    });
+  }, [user, navigate, toast]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!profile) {
+    if (!user) {
       toast({
-        title: "Error",
-        description: "Profile not loaded. Please try again.",
-        variant: "destructive"
+        title: "Authentication Required",
+        description: "Please sign in to create an inquiry.",
+        variant: "destructive",
+      });
+      navigate('/auth');
+      return;
+    }
+
+    if (!selectedSupplier || !formData.subject || !formData.message) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in all required fields.",
+        variant: "destructive",
       });
       return;
     }
 
-    setLoading(true);
+    setIsSubmitting(true);
 
     try {
-      const inquiryData = {
-        ...formData,
-        buyer_id: profile.id,
-        supplier_id: supplierId || product?.supplier_id,
-        product_id: productId,
-        quantity_required: formData.quantity_required ? parseInt(formData.quantity_required) : null,
-        status: 'pending' as const
-      };
-
-      const { error } = await supabase
-        .from('inquiries')
-        .insert([inquiryData]);
-
-      if (error) throw error;
-
+      // TODO: Implement inquiry creation API call
       toast({
-        title: "Success",
-        description: "Your inquiry has been sent successfully!",
+        title: "Feature Coming Soon",
+        description: "Inquiry creation will be implemented with the backend API.",
       });
-
-      navigate('/dashboard');
+      
+      // For now, just redirect back
+      navigate('/');
     } catch (error) {
-      console.error('Error creating inquiry:', error);
       toast({
         title: "Error",
-        description: "Failed to send inquiry. Please try again.",
-        variant: "destructive"
+        description: "Failed to create inquiry. Please try again.",
+        variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
+  };
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   return (
     <div className="min-h-screen bg-background">
       <Header />
       
-      <main className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
-          {/* Header */}
-          <div className="flex items-center gap-4 mb-8">
-            <Button variant="ghost" onClick={() => navigate(-1)}>
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-2xl mx-auto">
+          <div className="flex items-center gap-4 mb-6">
+            <Button variant="outline" size="sm" onClick={() => navigate(-1)}>
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back
             </Button>
-            <div>
-              <h1 className="text-3xl font-heading font-bold text-foreground">
-                Send Inquiry
-              </h1>
-              <p className="text-muted-foreground">
-                {product ? `Inquiring about: ${product.name}` : "Create a new supplier inquiry"}
-              </p>
-            </div>
+            <h1 className="text-2xl font-heading font-bold">Create Inquiry</h1>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-8">
-            <Card>
-              <CardHeader>
-                <CardTitle>Inquiry Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>New Inquiry Details</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="supplier">Select Supplier *</Label>
+                  <Select value={selectedSupplier} onValueChange={setSelectedSupplier}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose a supplier" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="coming-soon" disabled>
+                        Suppliers will be loaded from backend API
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="product">Related Product (Optional)</Label>
+                  <Select value={selectedProduct} onValueChange={setSelectedProduct}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose a product" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="coming-soon" disabled>
+                        Products will be loaded from backend API
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="subject">Subject *</Label>
                   <Input
                     id="subject"
+                    placeholder="Enter inquiry subject"
                     value={formData.subject}
                     onChange={(e) => handleInputChange('subject', e.target.value)}
-                    placeholder="What are you looking for?"
                     required
                   />
                 </div>
@@ -188,88 +173,67 @@ const CreateInquiry = () => {
                   <Label htmlFor="message">Message *</Label>
                   <Textarea
                     id="message"
+                    placeholder="Describe your requirements in detail..."
                     value={formData.message}
                     onChange={(e) => handleInputChange('message', e.target.value)}
-                    placeholder="Describe your requirements, specifications, and any other details..."
-                    rows={6}
+                    rows={4}
                     required
                   />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="quantity_required">Quantity Required</Label>
+                    <Label htmlFor="quantity">Quantity Required</Label>
                     <Input
-                      id="quantity_required"
-                      type="number"
-                      value={formData.quantity_required}
-                      onChange={(e) => handleInputChange('quantity_required', e.target.value)}
-                      placeholder="e.g., 1000"
+                      id="quantity"
+                      placeholder="e.g., 10 units"
+                      value={formData.quantity}
+                      onChange={(e) => handleInputChange('quantity', e.target.value)}
                     />
                   </div>
-
                   <div className="space-y-2">
-                    <Label htmlFor="target_price">Target Price</Label>
+                    <Label htmlFor="targetPrice">Target Price</Label>
                     <Input
-                      id="target_price"
-                      value={formData.target_price}
-                      onChange={(e) => handleInputChange('target_price', e.target.value)}
-                      placeholder="e.g., $5-10 per unit"
+                      id="targetPrice"
+                      placeholder="e.g., ₹50,000"
+                      value={formData.targetPrice}
+                      onChange={(e) => handleInputChange('targetPrice', e.target.value)}
                     />
                   </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="delivery_timeline">Delivery Timeline</Label>
-                    <Select onValueChange={(value) => handleInputChange('delivery_timeline', value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select timeline" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="ASAP">ASAP</SelectItem>
-                        <SelectItem value="1-2 weeks">1-2 weeks</SelectItem>
-                        <SelectItem value="1 month">1 month</SelectItem>
-                        <SelectItem value="2-3 months">2-3 months</SelectItem>
-                        <SelectItem value="3+ months">3+ months</SelectItem>
-                        <SelectItem value="Flexible">Flexible</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
                 </div>
-              </CardContent>
-            </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Additional Information</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="bg-muted/50 rounded-lg p-4 space-y-2">
-                  <h4 className="font-medium">Tips for a good inquiry:</h4>
-                  <ul className="text-sm text-muted-foreground space-y-1">
-                    <li>• Be specific about your requirements and specifications</li>
-                    <li>• Include quantity, quality standards, and delivery expectations</li>
-                    <li>• Mention any certifications or compliance requirements</li>
-                    <li>• Provide your business background and intended use</li>
-                    <li>• Be clear about your budget and timeline</li>
-                  </ul>
+                <div className="space-y-2">
+                  <Label htmlFor="deliveryTimeline">Delivery Timeline</Label>
+                  <Input
+                    id="deliveryTimeline"
+                    placeholder="e.g., 2-3 weeks"
+                    value={formData.deliveryTimeline}
+                    onChange={(e) => handleInputChange('deliveryTimeline', e.target.value)}
+                  />
                 </div>
-              </CardContent>
-            </Card>
 
-            <div className="flex items-center justify-between pt-6">
-              <Button type="button" variant="outline" onClick={() => navigate(-1)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={loading || !formData.subject || !formData.message}>
-                <Send className="w-4 h-4 mr-2" />
-                {loading ? "Sending..." : "Send Inquiry"}
-              </Button>
-            </div>
-          </form>
+                <div className="pt-4">
+                  <Button 
+                    type="submit" 
+                    className="w-full" 
+                    disabled={isSubmitting}
+                    variant="accent"
+                  >
+                    {isSubmitting ? (
+                      "Creating Inquiry..."
+                    ) : (
+                      <>
+                        <Send className="w-4 h-4 mr-2" />
+                        Send Inquiry
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
         </div>
-      </main>
-
-      <Footer />
+      </div>
     </div>
   );
 };
